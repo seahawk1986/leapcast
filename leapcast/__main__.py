@@ -20,7 +20,9 @@ from leapcast.services.websocket import *
 
 logger = logging.getLogger('Leapcast')
 
+
 class HTTPThread(object):
+
     def run(self):
         self.application = tornado.web.Application([
             (r"/ssdp/device-desc.xml", DeviceHandler),
@@ -52,6 +54,7 @@ class HTTPThread(object):
         reactor.callFromThread(reactor.stop)
         logger.info('Stopping DIAL server')
         tornado.ioloop.IOLoop.instance().stop()
+        pykka.ActorRegistry.stop_all()
 
     def register_app(self, app):
         name = app.__name__

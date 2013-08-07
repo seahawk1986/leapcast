@@ -1,9 +1,10 @@
 from __future__ import unicode_literals
 
 from leapcast.environment import Environment
-from leapcast.services.websocket import App
+from leapcast.services.websocket import App, AppCommands
 from leapcast.utils import render
 import tornado.web
+import logging
 
 
 class DeviceHandler(tornado.web.RequestHandler):
@@ -69,15 +70,17 @@ class ChannelFactory(tornado.web.RequestHandler):
     '''
     @tornado.web.asynchronous
     def post(self, app=None):
-        self.app = App.get_instance(app)
+        logging.info("New ServiceChannel request for app %s" % (app))
+        info = App.get_instance(app).ask({'cmd': AppCommands.NewChannel, 'app': app})
+        print info
         self.set_header(
             "Access-Control-Allow-Method", "POST, OPTIONS")
         self.set_header("Access-Control-Allow-Headers", "Content-Type")
         self.set_header("Content-Type", "application/json")
-        ## TODO: Use information from REGISTER packet
-        ## TODO: return url based on channel property
-        ## TODO: defer request until receiver connects
+        # TODO: Use information from REGISTER packet
+        # TODO: return url based on channel property
+        # TODO: defer request until receiver connects
         self.finish(
             '{"URL":"ws://%s/session/%s?%s","pingInterval":3}' % (
-            self.request.host, app, self.app.proxy().get_apps_count())
+            self.request.host, app, App.get_proxy_instance(app).get_apps_count().get())
         )

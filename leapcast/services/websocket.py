@@ -9,17 +9,30 @@ import tornado.web
 import pykka
 
 
+class Channel(object):
+
+    receiver = None
+    remote = None
+
+
+class AppCommands:
+
+    NewChannel = 1
+
+
 class App(pykka.ThreadingActor):
 
     '''
     Used to relay messages between app and channels
     '''
+
     name = ""
     remotes = list()
     receivers = list()
     rec_queue = list()
     control_channel = list()
     info = None
+    on_channel_factory = None
 
     @classmethod
     def get_instance(cls, app):
@@ -33,12 +46,33 @@ class App(pykka.ThreadingActor):
             return instance
 
     @classmethod
+    def get_proxy_instance(cls, app):
+
+        if app in Environment.channels:
+            return Environment.channels[app].proxy()
+        else:
+            instance = App.start()
+            instance.name = app
+            Environment.channels[app] = instance
+            return instance.proxy()
+
+    @classmethod
     def remove(cls, app):
         if app.name in Environment.channels:
             Environment.channels[app.name].stop()
 
     def on_receive(self, message):
-        return 'Hi there!'
+        print message
+        try:
+            if message['cmd'] is AppCommands.NewChannel:
+                logging.info("Channel for app %s requested", message)
+                message['handler'] = pykka.ThreadingFuture()
+                self.on_channel_factory = message
+                return message['handler']
+            else:
+                self.on_channel_factory['handler'].set(message)
+        except Exception:
+            pass
 
     def set_control_channel(self, ch):
 
@@ -92,14 +126,22 @@ class ServiceChannel(tornado.websocket.WebSocketHandler):
     '''
 
     def open(self, app=None):
-        self.app = App.get_instance(app)
+        print self.request
+        self.app = App.get_proxy_instance(app)
         self.name = app
-        self.app.proxy().set_control_channel(self)
+        self.app.set_control_channel(self)
 
     def on_message(self, message):
+
         cmd = json.loads(message)
+        if Environment.verbosity is logging.DEBUG:
+            message = json.dumps(
+                cmd, sort_keys=True, indent=2)
+            logging.debug("%s: %s" % (self.name, message))
+
         if cmd["type"] == "REGISTER":
-            self.app.tell(cmd)
+            App.get_instance(self.name).tell(cmd)
+            self.name = cmd['name']
             self.new_request()
         if cmd["type"] == "CHANNELRESPONSE":
             self.new_channel()
@@ -113,8 +155,8 @@ class ServiceChannel(tornado.websocket.WebSocketHandler):
         self.reply(
             {
                 "type": "NEWCHANNEL",
-                "senderId": self.app.proxy().get_recv_count().get(),
-                "requestId": self.app.proxy().get_apps_count().get(),
+                "senderId": self.app.get_recv_count().get(),
+                "requestId": self.app.get_apps_count().get(),
                 "URL": ws
             }
         )
@@ -124,8 +166,8 @@ class ServiceChannel(tornado.websocket.WebSocketHandler):
         self.reply(
             {
                 "type": "CHANNELREQUEST",
-                "senderId": self.app.proxy().get_recv_count().get(),
-                "requestId": self.app.proxy().get_apps_count().get(),
+                "senderId": self.app.get_recv_count().get(),
+                "requestId": self.app.get_apps_count().get(),
             }
         )
 
@@ -136,7 +178,7 @@ class ServiceChannel(tornado.websocket.WebSocketHandler):
 class WSC(tornado.websocket.WebSocketHandler):
 
     def open(self, app=None):
-        self.app = App.get_instance(app)
+        self.app = App.get_proxy_instance(app)
         self.cname = self.__class__.__name__
 
         logging.info("%s opened %s" %
@@ -148,7 +190,7 @@ class WSC(tornado.websocket.WebSocketHandler):
             if not 'ping' in message or not 'pong' in message:
                 pretty = json.loads(message)
                 message = json.dumps(
-                    pretty, sort_keys=True, indent=2, separators=(',', ': '))
+                    pretty, sort_keys=True, indent=2)
                 logging.debug("%s: %s" % (self.cname, message))
 
     def on_close(self):
@@ -164,15 +206,15 @@ class ReceiverChannel(WSC):
     '''
     def open(self, app=None):
         super(ReceiverChannel, self).open(app)
-        self.app.proxy().add_receiver(self)
-        queue = self.app.proxy().get_deque(self).get()
+        self.app.add_receiver(self)
+        queue = self.app.get_deque(self).get()
         if len(queue) > 0:
             for i in xrange(0, len(queue)):
                 self.write_message(queue.pop())
 
     def on_message(self, message):
         super(ReceiverChannel, self).on_message(message)
-        channel = self.app.proxy().get_app_channel(self).get()
+        channel = self.app.get_app_channel(self).get()
         if channel:
             channel.write_message(message)
 
@@ -188,15 +230,15 @@ class ApplicationChannel(WSC):
     '''
     def open(self, app=None):
         super(ApplicationChannel, self).open(app)
-        self.app.proxy().add_remote(self).get()
+        self.app.add_remote(self).get()
 
     def on_message(self, message):
         super(ApplicationChannel, self).on_message(message)
-        channel = self.app.proxy().get_recv_channel(self).get()
+        channel = self.app.get_recv_channel(self).get()
         if channel:
             channel.write_message(message)
         else:
-            queue = self.app.proxy().get_deque(self).get()
+            queue = self.app.get_deque(self).get()
             queue.append(message)
 
     def on_close(self):
