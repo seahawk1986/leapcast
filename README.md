@@ -22,14 +22,15 @@ Clone this directory, then run ```python setup.py develop```
 ### Better
 
 ```
-git clone git@github.com:dz0ny/leapcast.git
+git clone https://github.com/dz0ny/leapcast.git
 cd ./leapcast
-sudo apt-get install virtualenvwrapper python-pip
+sudo apt-get install virtualenvwrapper python-pip python-twisted-web python2.7-dev
 mkvirtualenv leapcast
 pip install .
 ```
 
 *** Because updates are frequent I don't recommend normal install. When package is stable enough it will be published to python index and easy installable.
+*** For those on windows(tm) gaming platform https://github.com/dz0ny/leapcast/issues/13#issuecomment-21783993
 
 ```
 usage: leapcast [-h] [-d] [--name NAME] [--user_agent USER_AGENT]
