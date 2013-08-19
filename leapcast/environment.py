@@ -28,8 +28,10 @@ def parse_cmd():
     parser.add_argument('--chrome', help='Path to Google Chrome executable')
     parser.add_argument('--fullscreen', action='store_true',
                         default=False, help='Start in full-screen mode')
-    parser.add_argument('--window_size', 
+    parser.add_argument('--window_size',
                         default=False, help='Set the initial chrome window size. eg 1920,1080')
+    parser.add_argument('--port',
+                        default="8008", help='Set the port for leapcast (default: 8008)')
     args = parser.parse_args()
 
     if args.name:
@@ -52,6 +54,9 @@ def parse_cmd():
 
     if args.d:
         Environment.verbosity = logging.DEBUG
+
+    if args.port:
+        Environment.port = args.port
 
     generate_uuid()
 

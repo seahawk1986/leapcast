@@ -7,7 +7,7 @@ import logging
 from leapcast.apps.default import *
 from leapcast.services.rest import *
 from leapcast.services.websocket import *
-
+from leapcast.environment import Environment
 
 class LEAPserver(object):
 
@@ -32,7 +32,7 @@ class LEAPserver(object):
             (r"/session/([^\/]+)", ApplicationChannel),
             (r"/system/control", CastPlatform),
         ])
-        self.application.listen(8008)
+        self.application.listen(Environment.port)
         tornado.ioloop.IOLoop.instance().start()
 
     def shutdown(self, ):

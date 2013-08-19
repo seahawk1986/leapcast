@@ -60,7 +60,7 @@ class SSDPHandler(DatagramRequestHandler):
 
     header = '''\
     HTTP/1.1 200 OK\r
-    LOCATION: http://$ip:8008/ssdp/device-desc.xml\r
+    LOCATION: http://$ip:$port/ssdp/device-desc.xml\r
     CACHE-CONTROL: max-age=1800\r
     CONFIGID.UPNP.ORG: 7337\r
     BOOTID.UPNP.ORG: 7337\r
@@ -92,6 +92,7 @@ class SSDPHandler(DatagramRequestHandler):
             logging.debug(datagram)
             data = render(self.header).substitute(
                 ip=self.get_remote_ip(address),
+                port=Environment.port,
                 uuid=Environment.uuid
             )
             self.reply(data, address)

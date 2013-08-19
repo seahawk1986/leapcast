@@ -105,7 +105,7 @@ class ServiceChannel(tornado.websocket.WebSocketHandler):
 
     def new_channel(self):
 
-        ws = "ws://localhost:8008/receiver/%s" % self.app.info["name"]
+        ws = "ws://localhost:%s/receiver/%s" % (Environment.port, self.app.info["name"])
         self.reply(
             {
                 "type": "NEWCHANNEL",
