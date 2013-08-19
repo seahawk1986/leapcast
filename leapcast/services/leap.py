@@ -32,7 +32,7 @@ class LEAPserver(object):
             (r"/session/([^\/]+)", ApplicationChannel),
             (r"/system/control", CastPlatform),
         ])
-        self.application.listen(Environment.port)
+        self.application.listen(int(Environment.port))
         tornado.ioloop.IOLoop.instance().start()
 
     def shutdown(self, ):
